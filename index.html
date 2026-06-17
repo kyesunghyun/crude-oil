@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Futures Candle Arena</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-panel">
+        <div class="brand-block">
+          <p class="eyebrow">Self Learning Daily Futures Platform</p>
+          <h1>Futures Candle Arena</h1>
+          <p class="subtitle">
+            예측보다 실제 기록된 확률과 승률을 우선 표시하는 해외선물 일봉 분석 플랫폼
+          </p>
+        </div>
+        <div class="market-strip" aria-label="한국식 차트 색상 안내">
+          <span><i class="signal red"></i>양봉 Red</span>
+          <span><i class="signal blue"></i>음봉 Blue</span>
+          <span><i class="signal neutral"></i>Statistics First</span>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="hud-card stat-card primary-stat">
+          <p class="panel-label">Recorded Probability</p>
+          <span class="stat-value" id="mainWinRate">0.0%</span>
+          <strong>전체 승률</strong>
+        </article>
+        <article class="hud-card stat-card">
+          <p class="panel-label">Total Predictions</p>
+          <span class="stat-value" id="totalPredictions">0</span>
+          <strong>총 예측</strong>
+        </article>
+        <article class="hud-card stat-card">
+          <p class="panel-label">Total Hits</p>
+          <span class="stat-value" id="totalHits">0</span>
+          <strong>총 적중</strong>
+        </article>
+        <article class="hud-card stat-card">
+          <p class="panel-label">Recent Accuracy</p>
+          <span class="stat-value" id="recentRates">30회 0.0% / 100회 0.0%</span>
+          <strong>최근 승률</strong>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="hud-card input-card">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Analysis Deck</p>
+              <h2>일봉 패턴 입력</h2>
+            </div>
+            <span class="status-pill" id="imageStatus">대기</span>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span>분석 날짜</span>
+              <input id="analysisDate" type="date" />
+            </label>
+            <label>
+              <span>종목명</span>
+              <select id="symbolSelect">
+                <option>Crude Oil</option>
+                <option>Nasdaq</option>
+                <option>Gold</option>
+                <option>S&P500</option>
+                <option>기타</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="score-board" id="fiveDayScores" aria-label="최근 5일 점수 입력"></div>
+
+          <label class="drop-zone" for="chartUpload">
+            <input id="chartUpload" type="file" accept="image/*" />
+            <span class="upload-icon">+</span>
+            <strong>과거 또는 현재 차트 이미지 선택</strong>
+            <small>AI 인식이 불완전할 경우 최근 5일 수동 점수 입력을 우선 사용하세요.</small>
+          </label>
+
+          <canvas id="imageCanvas" class="preview-canvas" width="720" height="360"></canvas>
+          <div class="analysis-note" id="imageInsight">
+            이미지는 보조 신호입니다. 저장되는 핵심 조건은 최근 5일 점수와 관성 상태입니다.
+          </div>
+
+          <button class="start-btn" id="calculateBtn" type="button">분석 저장</button>
+        </article>
+
+        <article class="hud-card result-card">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Statistics Judgement</p>
+              <h2>분석 화면</h2>
+            </div>
+            <span class="confidence-badge low" id="confidenceBadge">LOW</span>
+          </div>
+
+          <div class="probability-hero">
+            <span>기록 기반 실제 확률</span>
+            <strong id="recordedProbability">데이터 부족</strong>
+          </div>
+
+          <div class="judgement">
+            <p class="result-title" id="resultTitle">예상 방향: 중립</p>
+            <div class="meter" aria-label="신뢰도">
+              <span id="meterFill"></span>
+            </div>
+            <div class="result-stats">
+              <span>최근 5일 합계 <strong id="totalScore">0</strong></span>
+              <span>관성 상태 <strong id="inertiaState">관성 없음</strong></span>
+              <span>조건 분류 <strong id="conditionLabel">중립</strong></span>
+            </div>
+          </div>
+
+          <div class="pattern-panel">
+            <h3>과거 동일 패턴 통계</h3>
+            <div class="pattern-grid">
+              <span>동일 패턴 발생 <strong id="samePatternTotal">0회</strong></span>
+              <span>양봉 <strong id="sameBullish">0회</strong></span>
+              <span>음봉 <strong id="sameBearish">0회</strong></span>
+              <span>실제 확률 <strong id="sameProbability">데이터 부족</strong></span>
+            </div>
+          </div>
+
+          <p class="result-copy" id="resultCopy">
+            기록이 충분해질수록 예측보다 실제 조건부 확률을 우선 표시합니다.
+          </p>
+        </article>
+      </section>
+
+      <section class="grid analytics-grid">
+        <article class="hud-card">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Actual Result Input</p>
+              <h2>실제 결과 입력</h2>
+            </div>
+          </div>
+          <div class="record-list" id="pendingRecords"></div>
+        </article>
+
+        <article class="hud-card">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Symbol Ranking</p>
+              <h2>종목별 승률</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>종목</th>
+                  <th>예측</th>
+                  <th>적중</th>
+                  <th>승률</th>
+                </tr>
+              </thead>
+              <tbody id="symbolStats"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="hud-card full-span">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Conditional Probability Engine</p>
+              <h2>조건별 통계 및 승률 랭킹</h2>
+            </div>
+          </div>
+          <div class="condition-callout" id="conditionCallout">
+            P(음봉 | 합계 -10 이하 AND 관성 감소): 데이터 부족
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>조건</th>
+                  <th>발생</th>
+                  <th>양봉</th>
+                  <th>음봉</th>
+                  <th>우세 확률</th>
+                  <th>예측 적중률</th>
+                </tr>
+              </thead>
+              <tbody id="conditionStats"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid analytics-grid">
+        <article class="hud-card">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Backtest Mode</p>
+              <h2>과거 차트 백테스트</h2>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>종목</span>
+              <select id="backtestSymbol">
+                <option>Crude Oil</option>
+                <option>Nasdaq</option>
+                <option>Gold</option>
+                <option>S&P500</option>
+                <option>기타</option>
+              </select>
+            </label>
+            <label>
+              <span>실제 결과</span>
+              <select id="backtestActual">
+                <option value="bullish">양봉</option>
+                <option value="bearish">음봉</option>
+              </select>
+            </label>
+          </div>
+          <div class="score-board compact" id="backtestScores" aria-label="백테스트 최근 5일 점수 입력"></div>
+          <button class="start-btn secondary" id="addBacktestBtn" type="button">백테스트 추가</button>
+        </article>
+
+        <article class="hud-card">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Backtest Result</p>
+              <h2>백테스트 성과</h2>
+            </div>
+          </div>
+          <div class="result-stats stacked">
+            <span>승률 <strong id="backtestWinRate">0.0%</strong></span>
+            <span>평균 연승 <strong id="avgWinStreak">0.0</strong></span>
+            <span>평균 연패 <strong id="avgLossStreak">0.0</strong></span>
+            <span>최대 연패 <strong id="maxLossStreak">0</strong></span>
+          </div>
+        </article>
+
+        <article class="hud-card full-span">
+          <div class="card-header">
+            <div>
+              <p class="panel-label">Prediction History</p>
+              <h2>예측 기록</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>종목</th>
+                  <th>최근 5일</th>
+                  <th>합계</th>
+                  <th>관성</th>
+                  <th>예측</th>
+                  <th>신뢰도</th>
+                  <th>실제</th>
+                </tr>
+              </thead>
+              <tbody id="historyTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <footer class="disclaimer">
+        이 앱은 투자 조언이 아니며, 차트 기반 확률 분석 도구입니다.
+      </footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
