@@ -12,6 +12,9 @@ const TYPE_META = {
 
 const els = {
   scoreBoard: document.querySelector("#scoreBoard"),
+  chartUpload: document.querySelector("#chartUpload"),
+  chartCanvas: document.querySelector("#chartCanvas"),
+  imageInsight: document.querySelector("#imageInsight"),
   analyzeBtn: document.querySelector("#analyzeBtn"),
   dataStatus: document.querySelector("#dataStatus"),
   dataNote: document.querySelector("#dataNote"),
@@ -35,6 +38,8 @@ const state = {
   manualScores: [0, 0, 0, 0, 0],
   data: null,
 };
+
+const chartCtx = els.chartCanvas.getContext("2d", { willReadFrequently: true });
 
 const pct = (value, total) => (total ? `${((value / total) * 100).toFixed(1)}%` : "데이터 부족");
 const scoreText = (scores) => scores.map((score) => (score > 0 ? `+${score}` : String(score))).join(", ");
@@ -155,6 +160,83 @@ function buildValidation(rows) {
   }
 
   return { rows, scored, validations };
+}
+
+function scoreFromColorBias(redWeight, blueWeight) {
+  const total = redWeight + blueWeight;
+  if (total < 1) return 0;
+  const bias = (redWeight - blueWeight) / total;
+  const magnitude = Math.abs(bias) >= 0.5 ? 3 : Math.abs(bias) >= 0.22 ? 2 : 1;
+  if (bias > 0.08) return magnitude;
+  if (bias < -0.08) return -magnitude;
+  return 0;
+}
+
+function analyzeChartImage() {
+  const { width, height } = els.chartCanvas;
+  const data = chartCtx.getImageData(0, 0, width, height).data;
+  const segmentCount = 5;
+  const segments = Array.from({ length: segmentCount }, () => ({ red: 0, blue: 0, bright: 0 }));
+
+  for (let y = 0; y < height; y += 2) {
+    for (let x = 0; x < width; x += 2) {
+      const index = (y * width + x) * 4;
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      const brightness = (red + green + blue) / 3;
+      if (brightness < 45) continue;
+
+      const segmentIndex = Math.min(segmentCount - 1, Math.floor((x / width) * segmentCount));
+      const segment = segments[segmentIndex];
+      segment.bright += 1;
+
+      if (red > blue + 24 && red > green * 0.86) {
+        segment.red += red - Math.max(blue, green * 0.72);
+      }
+
+      if (blue > red + 18 && blue > green * 0.68) {
+        segment.blue += blue - Math.max(red, green * 0.58);
+      }
+    }
+  }
+
+  const scores = segments.map((segment) => scoreFromColorBias(segment.red, segment.blue));
+  const signalPixels = segments.reduce((sum, segment) => sum + segment.red + segment.blue, 0);
+  if (signalPixels < 1200) {
+    els.imageInsight.textContent = "차트 색상 신호가 약합니다. 아래 점수 버튼으로 직접 입력하세요.";
+    return;
+  }
+
+  state.manualScores = scores;
+  buildScoreBoard();
+  renderAnalysis();
+  els.imageInsight.textContent = `사진에서 추정한 최근 5일 점수: ${scoreText(scores)}. 인식이 다르면 점수 버튼으로 보정하세요.`;
+}
+
+function loadChartImage(file) {
+  const image = new Image();
+  image.onload = () => {
+    const ratio = Math.min(els.chartCanvas.width / image.width, els.chartCanvas.height / image.height);
+    const drawWidth = image.width * ratio;
+    const drawHeight = image.height * ratio;
+    const offsetX = (els.chartCanvas.width - drawWidth) / 2;
+    const offsetY = (els.chartCanvas.height - drawHeight) / 2;
+
+    chartCtx.clearRect(0, 0, els.chartCanvas.width, els.chartCanvas.height);
+    chartCtx.fillStyle = "#f7fcff";
+    chartCtx.fillRect(0, 0, els.chartCanvas.width, els.chartCanvas.height);
+    chartCtx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+    els.chartCanvas.classList.add("ready");
+    analyzeChartImage();
+    URL.revokeObjectURL(image.src);
+  };
+
+  image.onerror = () => {
+    els.imageInsight.textContent = "이미지를 읽지 못했습니다. 아래 점수 버튼으로 직접 입력하세요.";
+  };
+
+  image.src = URL.createObjectURL(file);
 }
 
 function getManualAnalysis() {
@@ -349,6 +431,12 @@ els.scoreBoard.addEventListener("click", (event) => {
 });
 
 els.analyzeBtn.addEventListener("click", playAnalyzeFeedback);
+els.chartUpload.addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  if (!file) return;
+  els.imageInsight.textContent = "차트 사진을 읽고 있습니다.";
+  loadChartImage(file);
+});
 
 buildScoreBoard();
 renderAll();

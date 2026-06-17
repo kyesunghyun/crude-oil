@@ -38,6 +38,17 @@
             <span>Yahoo Finance: MCL=F</span>
           </div>
 
+          <label class="upload-panel" for="chartUpload">
+            <input id="chartUpload" type="file" accept="image/*" />
+            <span class="upload-bubble">+</span>
+            <strong>차트 사진 업로드</strong>
+            <small>업로드하면 한국식 색상 기준으로 최근 캔들 점수를 자동 추정합니다.</small>
+          </label>
+          <canvas id="chartCanvas" class="chart-canvas" width="720" height="360"></canvas>
+          <div class="image-insight" id="imageInsight">
+            사진 인식은 보조 기능입니다. 필요하면 아래 점수 버튼으로 바로 보정하세요.
+          </div>
+
           <div class="score-board" id="scoreBoard" aria-label="최근 5일 점수 입력"></div>
 
           <button class="analyze-btn" id="analyzeBtn" type="button">ANALYZE</button>
